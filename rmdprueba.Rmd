@@ -1,31 +1,82 @@
 ---
-title: "ProyectoTD2025"
-author: "Seralsan"
-date: "2025-04-08"
-output: html_document
+title: "Práct"
+subtitle: "Tratamiento de Datos, Grado en Ciencia de Datos - UV"
+author: "Sergi Albuixech" # añadiros 
+date:  "`r Sys.Date()`"  # 31/03/2025
+output:
+  html_document:
+    echo: yes
+    number_sections: no
+    theme: lumen
+    toc: yes
+  pdf_document:
+    toc: yes
+    toc_depth: 3
+    number_sections: no
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+```{r setup, cache = F, echo = F, message = F, warning = F, tidy = F}
+# CONFIGURACIÓN GENERAL
+library(knitr)
+options(width = 100)
+# Opciones generales chunks
+opts_chunk$set(echo = T, message = F, error = F, warning = F,
+               comment = NA, fig.align = 'center', dpi = 100, tidy = F,
+               cache.path = '.cache/', fig.path = './figure/')
+# options(xtable.type = 'html')
+knit_hooks$set(inline = function(x) {
+  if(is.numeric(x)) {
+    round(x, getOption('digits'))
+  } else {
+    paste(as.character(x), collapse = ', ')
+  }
+})
+# knit_hooks$set(plot = knitr:::hook_plot_html)
+knitr::opts_chunk$set(fig.width=8, fig.height=4)
 ```
 
-## R Markdown
-
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-#Prueba
-summary(cars)
+```{r eval = FALSE, include = FALSE}
+# Especificamos las librerías necesarias en esta lista
+packages = c("tidyverse", "knitr", "ggplot2", "datasets", "RColorBrewer","nycflights13")
+# use this function to check if each package is on the local machine
+# if a package is installed, it will be loaded
+# if any are not, the missing package(s) will be installed and loaded
+package.check <- lapply(packages, FUN = function(x) {
+  if (!require(x, character.only = TRUE)) {
+    install.packages(x, dependencies = TRUE,repos='http://cran.rediris.es')
+    library(x, character.only = TRUE)
+  }
+})
+# verify they are loaded
+search()
 ```
 
-## Including Plots
+## Introducción y objetivos.
+El objetivo de este proyecto(hacer introduccion) 
 
-You can also embed plots, for example:
+## Load libraries, functions, and data files
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+```{r, message = FALSE, warning = FALSE}
+# vis
+library('ggplot2') # visualization
+
+
+# wrangle
+library('dplyr') # data manipulation
+library('tidyr') # data manipulation
+library('readr') # data input
+library('stringr') # string manipulation
+library('forcats') # factor manipulation
+library('modelr') # factor manipulation
+
+
+
+
+#Libreria PDF 
+library("pdftools")
+
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+
+
