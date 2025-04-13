@@ -9,22 +9,145 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
+# Introducción
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+Relización del proyecto en la asignatura: Tratamiento de los Datos, del grado de Ciencia de Datos del primer curso. La finalidad de este proyecto es la realización de un análisis exploratorio de los datos que se han recopilado en varios tickets de Mercadona.
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+## Importación
 
-```{r cars}
-summary(cars)
+```{r setup, cache = F, echo = F, message = F, warning = F, tidy = F}
+# CONFIGURACIÓN GENERAL
+library(knitr)
+options(width = 100)
+# Opciones generales chunks
+opts_chunk$set(echo = T, message = F, error = F, warning = F,
+               comment = NA, fig.align = 'center', dpi = 100, tidy = F,
+               cache.path = '.cache/', fig.path = './figure/')
+# options(xtable.type = 'html')
+knit_hooks$set(inline = function(x) {
+  if(is.numeric(x)) {
+    round(x, getOption('digits'))
+  } else {
+    paste(as.character(x), collapse = ', ')
+  }
+})
+# knit_hooks$set(plot = knitr:::hook_plot_html)
+knitr::opts_chunk$set(fig.width=8, fig.height=4)
 ```
 
-## Including Plots
-
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
+```{r eval = FALSE, include = FALSE}
+# Especificamos las librerías necesarias en esta lista
+packages = c("tidyverse", "knitr", "ggplot2", "datasets", "RColorBrewer","nycflights13")
+# use this function to check if each package is on the local machine
+# if a package is installed, it will be loaded
+# if any are not, the missing package(s) will be installed and loaded
+package.check <- lapply(packages, FUN = function(x) {
+  if (!require(x, character.only = TRUE)) {
+    install.packages(x, dependencies = TRUE,repos='http://cran.rediris.es')
+    library(x, character.only = TRUE)
+  }
+})
+# verify they are loaded
+search()
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+```{r, message = FALSE, warning = FALSE}
+# vis
+library('ggplot2') # visualization
+
+
+# wrangle
+library('dplyr') # data manipulation
+library('tidyr') # data manipulation
+library('readr') # data input
+library('stringr') # string manipulation
+library('forcats') # factor manipulation
+library('modelr') # factor manipulation
+
+
+
+
+#Libreria PDF 
+library("pdftools")
+
+```
+
+```{r, echo =FALSE, warning=FALSE, message=FALSE}
+#Cargamos libreria pracma y los paquetes
+library(pracma)
+
+install.packages("pdftools")  # Solo una vez
+library(pdftools)
+```
+
+Una vez cargadas las librerías necesarias, se procederá a importar los datos. Para ello, se obtiene el listado de todos los tickets ubicados en una carpeta específica.
+
+```{r, echo =FALSE, warning=FALSE, message=FALSE}
+# Guardamos en la variable directorio, la ruta de la carpeta con los ficheros que más tarde utilizaremos
+directorio <- "./data"
+
+# Guardamos en la variable 'tickets' todos los archivos contenidos en esta carpeta, que en este caso corresponden a los tickets de compra.
+tickets <- list.files(directorio, full.names = TRUE)
+```
+
+
+La lectura de un ticket se organiza en una función que sigue varios pasos. Primero, se establece la codificación en UTF-8 para evitar errores posteriores, ya que algunos archivos pueden tener formatos diferentes.
+
+A continuación, se analiza la cabecera del recibo, asignando cada línea a una variable: nombre del supermercado, dirección, etc. En ciertos casos, una línea puede contener varios datos, como la fecha y la hora, que separaremos más adelante.
+
+Con esta información se crea un primer dataframe. Luego se extraen los productos del ticket para construir un segundo conjunto de datos. Finalmente, se añade el total de la compra, que suele aparecer tras los productos, al dataframe principal por tratarse de un valor único por ticket.
+
+```{r, echo =FALSE, warning=FALSE, message=FALSE}
+
+#Funcion que lee un archivo de ticket y extrae su información principal: cabecera, productos y total de compra, y la devuelve a modo de data frame
+procesar_ticket <- function(archivo) {
+  library(pdftools)
+
+  #Leer y limpiar el contenido del PDF
+  contenido <- pdf_text(archivo)
+  contenido <- strsplit(contenido, "\n")[[1]]
+  contenido <- trimws(contenido)
+  contenido <- contenido[contenido != ""]
+  
+  #Establecer codificación en UTF-8
+  contenido <- iconv(contenido, to = "UTF-8")
+
+  #Queremos encontrar la posición de la palabra "TOTAL" para quedarnos con   todas las líneas desde la primera hasta esa (pos_total)
+  pos_total <- grep("TOTAL", contenido)
+  con_ticket <- contenido[1:pos_total]
+  
+  #Asignación de las primeras líneas del ticket -> info. común en tickets
+  supermercado <- con_ticket[1]
+  calle <- con_ticket[2]
+  ubicacion <- con_ticket[3]
+  telefono <- con_ticket[4] 
+  fecha <- con_ticket[5]
+  
+  #Extraer productos desde la línea 8 hasta anres de "TOTAL"
+  l_producto <- 8:(length(con_ticket)-1)
+  producto<- con_ticket[l_producto]
+  
+  #Importe total de la compra
+  total <- con_ticket[length(con_ticket)]
+  
+  #Creación data frame
+  DF_temporal <- data.frame(Supermercado = supermercado,
+                               Calle = calle,
+                               Ubicacion = ubicacion,
+                               Telefono = telefono,
+                               Fecha = fecha,
+                               Producto = producto,
+                               Total = total)
+
+  return(DF_temporal)
+}
+
+
+```
+
+```{r}
+lista_tickets <- lapply(tickets, procesar_ticket)
+df_tickets <- do.call(rbind, lista_tickets)
+
+```
