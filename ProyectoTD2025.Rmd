@@ -113,8 +113,15 @@ procesar_ticket <- function(archivo) {
   #Establecer codificación en UTF-8
   contenido <- iconv(contenido, to = "UTF-8")
 
-  #Queremos encontrar la posición de la palabra "TOTAL" para quedarnos con   todas las líneas desde la primera hasta esa (pos_total)
-  pos_total <- grep("TOTAL", contenido)
+  #Buscamos la primera aparición de la palabra "TOTAL" para cortar el ticket hasta esa línea
+  pos_total <- grep("TOTAL", contenido)[1]
+
+  
+  if (is.na(pos_total)) {
+  warning(paste("No se encontró 'TOTAL' en el archivo:", archivo))
+  return(NULL)
+  }
+  
   con_ticket <- contenido[1:pos_total]
   
   #Asignación de las primeras líneas del ticket -> info. común en tickets
@@ -146,8 +153,18 @@ procesar_ticket <- function(archivo) {
 
 ```
 
-```{r}
-lista_tickets <- lapply(tickets, procesar_ticket)
-df_tickets <- do.call(rbind, lista_tickets)
 
+El siguiente paso consiste en generar una lista con todos los tickets disponibles y aplicar sobre cada uno la función definida anteriormente.
+
+```{r, echo =FALSE, warning=FALSE, message=FALSE}
+# Inicializamos una lista vacía
+lista <- list()
+
+# Iteramos sobre cada ticket
+for (ticket in tickets) {
+  data_temporal <- procesar_ticket(ticket)
+  lista[[length(lista) + 1]] <- data_temporal
+}
 ```
+
+
