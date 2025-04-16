@@ -52,33 +52,17 @@ search()
 ```
 
 
-```{r, message = FALSE, warning = FALSE}
-# vis
+```{r, echo =FALSE, warning=FALSE, message=FALSE}
+#Cargamos libreria pracma y los paquetes
+library(pracma)
+library(pdftools)
 library('ggplot2') # visualization
-
-
-# wrangle
 library('dplyr') # data manipulation
 library('tidyr') # data manipulation
 library('readr') # data input
 library('stringr') # string manipulation
 library('forcats') # factor manipulation
 library('modelr') # factor manipulation
-
-
-
-
-#Libreria PDF 
-library("pdftools")
-
-```
-
-```{r, echo =FALSE, warning=FALSE, message=FALSE}
-#Cargamos libreria pracma y los paquetes
-library(pracma)
-
-install.packages("pdftools")  # Solo una vez
-library(pdftools)
 ```
 
 Una vez cargadas las librerías necesarias, se procederá a importar los datos. Para ello, se obtiene el listado de todos los tickets ubicados en una carpeta específica.
@@ -101,7 +85,7 @@ Con esta información se crea un primer dataframe. Luego se extraen los producto
 ```{r, echo =FALSE, warning=FALSE, message=FALSE}
 
 #Funcion que lee un archivo de ticket y extrae su información principal: cabecera, productos y total de compra, y la devuelve a modo de data frame
-procesar_ticket <- function(archivo) {
+leer_ticket <- function(archivo) {
   library(pdftools)
 
   #Leer y limpiar el contenido del PDF
@@ -114,32 +98,32 @@ procesar_ticket <- function(archivo) {
   contenido <- iconv(contenido, to = "UTF-8")
 
   #Buscamos la primera aparición de la palabra "TOTAL" para cortar el ticket hasta esa línea
-  pos_total <- grep("TOTAL", contenido)[1]
+  total <- grep("TOTAL", contenido)[1]
 
   
-  if (is.na(pos_total)) {
+  if (is.na(total)) {
   warning(paste("No se encontró 'TOTAL' en el archivo:", archivo))
   return(NULL)
   }
   
-  con_ticket <- contenido[1:pos_total]
+  contenido_ticket <- contenido[1:total]
   
   #Asignación de las primeras líneas del ticket -> info. común en tickets
-  supermercado <- con_ticket[1]
-  calle <- con_ticket[2]
-  ubicacion <- con_ticket[3]
-  telefono <- con_ticket[4] 
-  fecha <- con_ticket[5]
+  supermercado <- contenido_ticket[1]
+  calle <- contenido_ticket[2]
+  ubicacion <- contenido_ticket[3]
+  telefono <- contenido_ticket[4] 
+  fecha <- contenido_ticket[5]
   
   #Extraer productos desde la línea 8 hasta anres de "TOTAL"
-  l_producto <- 8:(length(con_ticket)-1)
-  producto<- con_ticket[l_producto]
+  l_producto <- 8:(length(contenido_ticket)-1)
+  producto<- contenido_ticket[l_producto]
   
   #Importe total de la compra
-  total <- con_ticket[length(con_ticket)]
+  importe_total <- contenido_ticket[length(contenido_ticket)]
   
   #Creación data frame
-  DF_temporal <- data.frame(Supermercado = supermercado,
+  data_frame <- data.frame(Supermercado = supermercado,
                                Calle = calle,
                                Ubicacion = ubicacion,
                                Telefono = telefono,
@@ -147,7 +131,7 @@ procesar_ticket <- function(archivo) {
                                Producto = producto,
                                Total = total)
 
-  return(DF_temporal)
+  return(data_frame)
 }
 
 
@@ -157,14 +141,93 @@ procesar_ticket <- function(archivo) {
 El siguiente paso consiste en generar una lista con todos los tickets disponibles y aplicar sobre cada uno la función definida anteriormente.
 
 ```{r, echo =FALSE, warning=FALSE, message=FALSE}
-# Inicializamos una lista vacía
+#Inicializamos una lista vacía
 lista <- list()
 
-# Iteramos sobre cada ticket
+#Iteración sobre cada ticket
 for (ticket in tickets) {
-  data_temporal <- procesar_ticket(ticket)
+  data_temporal <- leer_ticket(ticket)
   lista[[length(lista) + 1]] <- data_temporal
 }
 ```
 
+Una vez procesados los tickets, se unifican los dataframes y se separan las variables combinadas, como la ubicación o la fecha y hora, en columnas independientes.
 
+```{r, echo =FALSE, warning=FALSE, message=FALSE}
+#Unión de todos los df de la lista
+df <- bind_rows(lista)
+
+#Ubicación -> CP y Ubicacion
+df <- separate(df, Ubicacion, into = c("CP", "Ubicacion"), sep = " ")
+
+# Fecha -> Fecha y Hora
+df <- separate(df, Fecha, into = c("Fecha", "Hora"), sep = " ")
+```
+
+La importación continúa separando cantidad, producto y precio en un nuevo dataframe, que luego se une con el de cabeceras para relacionar cada producto con su compra correspondiente.
+
+```{r, echo =FALSE, warning=FALSE, message=FALSE}
+
+df <- separate(df, Producto, into = c("Cantidad", "Producto"), 
+               sep = "(?<=.)(?=.)", extra = "merge")
+
+df$precio_prod <- substr(df$Producto, nchar(df$Producto) - 3,
+                             nchar(df$Producto))
+
+df$Producto <- substr(df$Producto, 1, nchar(df$Producto) - 4)
+
+df$precio_prod <- as.numeric(gsub(",", ".", df$precio_prod))
+
+cabecera <- df %>% select(Supermercado, Calle, CP, Ubicacion, Telefono, Fecha, Hora, Total)
+```
+
+A continuación, se analiza la presencia del parking en los tickets, creando una variable que indica si aparece o no, y se incorpora al dataframe principal junto a las cabeceras, productos y tota
+
+```{r, echo =FALSE, warning=FALSE, message=FALSE}
+
+df <- df %>%
+  mutate(parking = grepl("PARKING", Producto, ignore.case = TRUE))
+
+df$Total <- gsub("[^0-9,]", "", df$Total)
+
+df$Total <- as.numeric(gsub(",", ".", df$Total))
+
+df <- subset(df, !grepl("ENTRADA|SALIDA", df$Cantidad, ignore.case = TRUE))
+df <- subset(df, !grepl("ENTRADA|SALIDA", df$Producto, ignore.case = TRUE))
+
+cabecera <- df %>%
+  group_by(Supermercado, Calle, CP, Ubicacion, Telefono, Fecha, Hora, Total) %>%
+  summarise(parking = any(parking))
+
+Productos <- df %>% select(Cantidad, Producto, precio_prod)
+
+Productos <- Productos %>%
+  filter(!grepl("PARKING", Producto, ignore.case = TRUE))
+```
+
+Para finalizar la imputación de datos, se identifican las líneas que contienen pesos de productos y se asocian a su nombre correspondiente, dando lugar a tres dataframes finales: uno con los productos, otro con la información general y un tercero con todos los datos integrados.
+
+```{r, echo =FALSE, warning=FALSE, message=FALSE}
+
+kg <- which(str_detect(Productos$Producto, "kg"))
+
+prod_anteriores <- Productos$Producto[kg - 1]
+
+productos_con_peso_precio <- paste(prod_anteriores, Productos$Producto[kg], sep = ", ")
+
+Productos$Producto[kg - 1] <- productos_con_peso_precio
+Productos <- slice(Productos,-indices_kg)
+
+Productos$Cantidad <- as.numeric(Productos$Cantidad)
+cabecera$Telefono <- gsub("TELÉFONO: ", "", cabeceras$Telefono)
+
+```
+
+
+Preguntas propuestas:
+
+1. ¿Cuál es el promedio de productos por ticket?
+2. ¿Qué categoría representa el mayor porcentaje del gasto total?
+3. ¿Qué días de la semana concentran más compras?
+4. ¿Cuáles son los 5 productos más baratos comprados por unidad? ¿Con qué frecuencia se compran?
+5. ¿Qué porcentaje del gasto total se ha destinado a productos no alimentarios? ¿Qué tipo de productos destacan en ese grupo?
