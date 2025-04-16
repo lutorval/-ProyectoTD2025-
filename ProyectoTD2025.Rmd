@@ -2,10 +2,14 @@
 title: "ProyectoTD2025"
 author: "Grupo G"
 date: "2025-04-13"
-output: html_document
+output:
+  html_document: default
+  pdf_document: default
 ---
 
-```{r setup, include=FALSE}
+##Análsis Tickets Supermercado
+
+```{r setup, include=TRUE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
@@ -15,27 +19,7 @@ Relización del proyecto en la asignatura: Tratamiento de los Datos, del grado d
 
 ## Importación
 
-```{r setup, cache = F, echo = F, message = F, warning = F, tidy = F}
-# CONFIGURACIÓN GENERAL
-library(knitr)
-options(width = 100)
-# Opciones generales chunks
-opts_chunk$set(echo = T, message = F, error = F, warning = F,
-               comment = NA, fig.align = 'center', dpi = 100, tidy = F,
-               cache.path = '.cache/', fig.path = './figure/')
-# options(xtable.type = 'html')
-knit_hooks$set(inline = function(x) {
-  if(is.numeric(x)) {
-    round(x, getOption('digits'))
-  } else {
-    paste(as.character(x), collapse = ', ')
-  }
-})
-# knit_hooks$set(plot = knitr:::hook_plot_html)
-knitr::opts_chunk$set(fig.width=8, fig.height=4)
-```
-
-```{r eval = FALSE, include = FALSE}
+```{r eval = FALSE, include = TRUE}
 # Especificamos las librerías necesarias en esta lista
 packages = c("tidyverse", "knitr", "ggplot2", "datasets", "RColorBrewer","nycflights13")
 # use this function to check if each package is on the local machine
@@ -67,7 +51,7 @@ library('modelr') # factor manipulation
 
 Una vez cargadas las librerías necesarias, se procederá a importar los datos. Para ello, se obtiene el listado de todos los tickets ubicados en una carpeta específica.
 
-```{r, echo =FALSE, warning=FALSE, message=FALSE}
+```{r}
 # Guardamos en la variable directorio, la ruta de la carpeta con los ficheros que más tarde utilizaremos
 directorio <- "./data"
 
@@ -82,7 +66,7 @@ A continuación, se analiza la cabecera del recibo, asignando cada línea a una 
 
 Con esta información se crea un primer dataframe. Luego se extraen los productos del ticket para construir un segundo conjunto de datos. Finalmente, se añade el total de la compra, que suele aparecer tras los productos, al dataframe principal por tratarse de un valor único por ticket.
 
-```{r, echo =FALSE, warning=FALSE, message=FALSE}
+```{r}
 
 #Funcion que lee un archivo de ticket y extrae su información principal: cabecera, productos y total de compra, y la devuelve a modo de data frame
 leer_ticket <- function(archivo) {
@@ -140,7 +124,7 @@ leer_ticket <- function(archivo) {
 
 El siguiente paso consiste en generar una lista con todos los tickets disponibles y aplicar sobre cada uno la función definida anteriormente.
 
-```{r, echo =FALSE, warning=FALSE, message=FALSE}
+```{r}
 #Inicializamos una lista vacía
 lista <- list()
 
@@ -153,7 +137,7 @@ for (ticket in tickets) {
 
 Una vez procesados los tickets, se unifican los dataframes y se separan las variables combinadas, como la ubicación o la fecha y hora, en columnas independientes.
 
-```{r, echo =FALSE, warning=FALSE, message=FALSE}
+```{r}
 #Unión de todos los df de la lista
 df <- bind_rows(lista)
 
@@ -166,7 +150,7 @@ df <- separate(df, Fecha, into = c("Fecha", "Hora"), sep = " ")
 
 La importación continúa separando cantidad, producto y precio en un nuevo dataframe, que luego se une con el de cabeceras para relacionar cada producto con su compra correspondiente.
 
-```{r, echo =FALSE, warning=FALSE, message=FALSE}
+```{r}
 
 df <- separate(df, Producto, into = c("Cantidad", "Producto"), 
                sep = "(?<=.)(?=.)", extra = "merge")
@@ -183,7 +167,7 @@ cabecera <- df %>% select(Supermercado, Calle, CP, Ubicacion, Telefono, Fecha, H
 
 A continuación, se analiza la presencia del parking en los tickets, creando una variable que indica si aparece o no, y se incorpora al dataframe principal junto a las cabeceras, productos y tota
 
-```{r, echo =FALSE, warning=FALSE, message=FALSE}
+```{r}
 
 df <- df %>%
   mutate(parking = grepl("PARKING", Producto, ignore.case = TRUE))
@@ -207,7 +191,7 @@ Productos <- Productos %>%
 
 Para finalizar la imputación de datos, se identifican las líneas que contienen pesos de productos y se asocian a su nombre correspondiente, dando lugar a tres dataframes finales: uno con los productos, otro con la información general y un tercero con todos los datos integrados.
 
-```{r, echo =FALSE, warning=FALSE, message=FALSE}
+```{r}
 
 kg <- which(str_detect(Productos$Producto, "kg"))
 
@@ -216,10 +200,10 @@ prod_anteriores <- Productos$Producto[kg - 1]
 productos_con_peso_precio <- paste(prod_anteriores, Productos$Producto[kg], sep = ", ")
 
 Productos$Producto[kg - 1] <- productos_con_peso_precio
-Productos <- slice(Productos,-indices_kg)
+Productos <- slice(Productos,-kg)
 
 Productos$Cantidad <- as.numeric(Productos$Cantidad)
-cabecera$Telefono <- gsub("TELÉFONO: ", "", cabeceras$Telefono)
+cabecera$Telefono <- gsub("TELÉFONO: ", "", cabecera$Telefono)
 
 ```
 
