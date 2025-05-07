@@ -1,6 +1,7 @@
 ---
-title: "ProyectoTD2025"
-author: "Grupo G"
+title: "Mini Proyecto 2025. Análisis de tickets de supermercado"
+subtitle: "Tratamiento de Datos. Grado en Ciencia de Datos - UV"
+author: "Grupo G: Lucía Torcal Valdivia, Clara Soriano Solaz, Yelyzaveta Domashova, Sergi Albuixech Sanfélix y Ronal Felipe Garcia Marin"
 date: "2025-04-13"
 output:
   html_document: default
