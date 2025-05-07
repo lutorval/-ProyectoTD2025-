@@ -8,8 +8,6 @@ output:
   pdf_document: default
 ---
 
-##Análsis Tickets Supermercado
-
 ```{r setup, include=TRUE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
@@ -208,6 +206,48 @@ cabecera$Telefono <- gsub("TELÉFONO: ", "", cabecera$Telefono)
 
 ```
 
+
+
+# Exploración, análisis y visualización 
+
+¿Cuáles son los 5 productos, de los vendidos por unidades, con más ventas ? ¿Cuántas unidades de cada uno se han vendido ?
+
+
+```{r a, warning=FALSE, echo =FALSE, fig.align='center', fig.cap='Productos más vendidos.'}
+library(ggplot2)
+
+# Ordenar por unidades vendidas y seleccionar los 5 productos más vendidos
+top_productos <- df %>%
+  arrange(desc(Cantidad)) %>%
+  slice_head(n = 5)
+
+# Asegurarse de que la columna Cantidad es numérica
+Productos$Cantidad <- as.numeric(Productos$Cantidad)
+
+# --- CÁLCULO DE LOS 5 PRODUCTOS MÁS VENDIDOS POR UNIDADES ---
+top_productos <- Productos %>%
+  group_by(Producto) %>%
+  summarise(UnidadesVendidas = sum(Cantidad, na.rm = TRUE)) %>%
+  arrange(desc(UnidadesVendidas)) %>%
+  slice_head(n = 5)
+
+# Paleta de colores personalizada
+colores <- c("#FF6F61", "#6B5B95", "#88B04B", "tomato", "#92A8D1")
+
+# --- GRÁFICO DE BARRAS ---
+ggplot(top_productos, aes(x = UnidadesVendidas, y = reorder(Producto, UnidadesVendidas), fill = Producto)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Top 5 Productos Más Vendidos",
+       x = "Unidades Vendidas",
+       y = "Producto") +
+  scale_fill_manual(values = colores) +
+  theme_void() +
+  theme(
+    axis.text.y = element_text(face = "bold", hjust = 1),
+    axis.text.x = element_text(face = "bold")
+  )
+
+```
 
 Preguntas propuestas:
 
