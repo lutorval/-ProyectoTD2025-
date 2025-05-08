@@ -209,17 +209,28 @@ Para finalizar la imputación de datos, se identifican las líneas que contienen
 
 ```{r, echo =FALSE, warning=FALSE, message=FALSE}
 
-kg <- which(str_detect(Productos$Producto, "kg"))
+library(dplyr)
+library(stringr)
 
-prod_anteriores <- Productos$Producto[kg - 1]
+# 1) Localizamos las filas con "kg"
+indices_kg <- which(str_detect(Productos$Producto, "kg"))
 
-productos_con_peso_precio <- paste(prod_anteriores, Productos$Producto[kg], sep = ", ")
+# 2) Para cada "kg", combinamos con la línea anterior
+prod_anteriores <- Productos$Producto[indices_kg - 1]
+productos_con_peso_precio <- paste(prod_anteriores, Productos$Producto[indices_kg], sep = ", ")
 
-Productos$Producto[kg - 1] <- productos_con_peso_precio
-Productos <- slice(Productos,-indices_kg)
+# 3) Reemplazamos la línea anterior por la combinada
+Productos$Producto[indices_kg - 1] <- productos_con_peso_precio
 
+# 4) Eliminamos las líneas originales que solo tenían la parte "kg"
+Productos <- slice(Productos, -indices_kg)
+
+# 5) Convertimos Cantidad a numérico
 Productos$Cantidad <- as.numeric(Productos$Cantidad)
-cabecera$Telefono <- gsub("TELÉFONO: ", "", cabeceras$Telefono)
+
+# 6) Arreglamos el nombre de la columna Telefono en cabecera
+cabecera$Telefono <- gsub("TELÉFONO: ", "", cabecera$Telefono)
+
 
 ```
 1. ¿Cuáles son los 5 productos, de los vendidos por unidades, con más ventas ? ¿Cuántas unidades de cada uno se han vendido ?
@@ -241,3 +252,43 @@ Preguntas propuestas:
 3. ¿Qué días de la semana concentran más compras?
 4. ¿Cuáles son los 5 productos más baratos comprados por unidad? ¿Con qué frecuencia se compran?
 5. ¿Qué porcentaje del gasto total se ha destinado a productos no alimentarios? ¿Qué tipo de productos destacan en ese grupo?
+ 
+# 1. ¿Cuál es el promedio de productos por ticket?
+```{r}
+
+
+# Suponiendo que 'df' tiene todas las filas de productos con sus columnas de cabecera:
+promedio_por_ticket <- df %>%
+  # Agrupar por un identificador único de ticket; aquí usamos todas las columnas de cabecera
+  group_by(Supermercado, Calle, CP, Ubicacion, Telefono, Fecha, Hora) %>%
+  summarise(n_productos = n(), .groups = "drop") %>%
+  summarise(promedio = mean(n_productos))
+
+promedio_por_ticket
+
+```
+```{r}
+
+
+# 1) Calcular nº de productos por ticket
+tickets_productos <- df %>% 
+  group_by(Supermercado, Calle, CP, Ubicacion, Telefono, Fecha, Hora) %>%
+  summarise(n_productos = n(), .groups = 'drop')
+
+# 2) Calcular la media
+media_prod <- mean(tickets_productos$n_productos)
+
+# 3) Graficar
+ggplot(tickets_productos, aes(x = n_productos)) +
+  geom_histogram(binwidth = 1, fill = "pink", color = "white") +
+  geom_vline(xintercept = media_prod, linetype = "dashed", linewidth = 1) +
+  labs(
+    title    = "Distribución de productos por ticket",
+    subtitle = paste0("Media = ", round(media_prod, 2), " productos"),
+    x        = "Número de productos",
+    y        = "Cantidad de tickets"
+  ) +
+  theme_minimal()
+
+```
+
