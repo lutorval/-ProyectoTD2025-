@@ -252,7 +252,45 @@ Preguntas propuestas:
 3. ¿Qué días de la semana concentran más compras?
 4. ¿Cuáles son los 5 productos más baratos comprados por unidad? ¿Con qué frecuencia se compran?
 5. ¿Qué porcentaje del gasto total se ha destinado a productos no alimentarios? ¿Qué tipo de productos destacan en ese grupo?
- 
+## Preguntas Obligatorias
+
+#1. ¿Cuáles son los 5 productos, de los vendidos por unidades, con más ventas ? ¿Cuántas unidades de cada uno se han vendido ?
+```{r}
+unitarios %>%
+  filter(str_detect(Producto, regex("ATUN CLARO OLIVA", ignore_case = TRUE))) %>%
+  distinct(Producto)
+
+
+top5_unitarios_limpios <- unitarios %>%
+  mutate(
+    # quitamos cualquier palabra final (suelo ser el precio),
+    # es decir, desde el último espacio hasta el final
+    Producto_limpio = str_squish(str_remove(Producto, "\\s+[^\\s]+$"))
+  ) %>%
+  group_by(Producto_limpio) %>%
+  summarise(unidades_vendidas = sum(Cantidad, na.rm = TRUE), .groups = "drop") %>%
+  arrange(desc(unidades_vendidas)) %>%
+  slice_head(n = 5)
+
+top5_unitarios_limpios
+
+# Gráfico de barras horizontales ordenado
+ggplot(top5_unitarios_limpios, 
+       aes(x = reorder(Producto_limpio, unidades_vendidas), 
+           y = unidades_vendidas)) +
+  geom_col(fill = "lightgreen") +
+  coord_flip() +
+  labs(
+    title    = "Top 5 productos vendidos por unidades",
+    subtitle = "Unidades vendidas totales",
+    x        = "Producto",
+    y        = "Unidades vendidas"
+  ) +
+  theme_minimal()
+
+```
+
+## Preguntas Propuestas 
 # 1. ¿Cuál es el promedio de productos por ticket?
 ```{r}
 
@@ -291,4 +329,5 @@ ggplot(tickets_productos, aes(x = n_productos)) +
   theme_minimal()
 
 ```
+
 
