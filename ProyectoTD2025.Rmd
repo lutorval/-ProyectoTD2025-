@@ -1,6 +1,7 @@
 ---
-title: "ProyectoTD2025"
-author: "Grupo G"
+title: "Mini Proyecto 2025. Análisis de tickets de supermercado"
+subtitle: "Tratamiento de Datos. Grado en Ciencia de Datos - UV"
+author: "Grupo G: Lucía Torcal Valdivia, Clara Soriano Solaz, Yelyzaveta Domashova, Sergi Albuixech Sanfélix y Ronal Felipe Garcia Marin"
 date: "2025-04-13"
 output: html_document
 ---
@@ -34,6 +35,7 @@ knit_hooks$set(inline = function(x) {
 # knit_hooks$set(plot = knitr:::hook_plot_html)
 knitr::opts_chunk$set(fig.width=8, fig.height=4)
 ```
+
 
 ```{r eval = FALSE, include = FALSE}
 # Especificamos las librerías necesarias en esta lista
@@ -209,27 +211,31 @@ Para finalizar la imputación de datos, se identifican las líneas que contienen
 
 ```{r, echo =FALSE, warning=FALSE, message=FALSE}
 
-library(dplyr)
-library(stringr)
-
-# 1) Localizamos las filas con "kg"
+# Hemos usado la función str_detect para encontrar en la columna Cantidad los "kg"
 indices_kg <- which(str_detect(Productos$Producto, "kg"))
 
-# 2) Para cada "kg", combinamos con la línea anterior
-prod_anteriores <- Productos$Producto[indices_kg - 1]
-productos_con_peso_precio <- paste(prod_anteriores, Productos$Producto[indices_kg], sep = ", ")
+productos_anteriores <- Productos$Producto[indices_kg - 1]
 
-# 3) Reemplazamos la línea anterior por la combinada
-Productos$Producto[indices_kg - 1] <- productos_con_peso_precio
+# Unimos los precios por kilo con los precios anteriores
+productos_con_precios_kg <- paste(productos_anteriores, Productos$Producto[indices_kg], sep = ", ")
 
-# 4) Eliminamos las líneas originales que solo tenían la parte "kg"
-Productos <- slice(Productos, -indices_kg)
+# Asociamos las filas anteriores con los productos con precio por kilo
+Productos$Producto[indices_kg - 1] <- productos_con_precios_kg
+Productos <- slice(Productos,-indices_kg)
 
-# 5) Convertimos Cantidad a numérico
+# "Cantidad" -> tipo numérico
 Productos$Cantidad <- as.numeric(Productos$Cantidad)
-
-# 6) Arreglamos el nombre de la columna Telefono en cabecera
 cabecera$Telefono <- gsub("TELÉFONO: ", "", cabecera$Telefono)
+
+# Crear columna 'id' en ambos dataframes para unir por posición
+Productos$id <- seq_len(nrow(Productos))
+cabecera$id <- seq_len(nrow(cabecera))
+
+# Unir por id
+datos_integrados <- left_join(Productos, cabecera, by = "id")
+
+# Eliminamos filas con NA en la columna Cantidad
+Productos <- Productos %>% filter(!is.na(Cantidad))
 
 
 ```
@@ -255,40 +261,35 @@ Preguntas propuestas:
 ## Preguntas Obligatorias
 
 #1. ¿Cuáles son los 5 productos, de los vendidos por unidades, con más ventas ? ¿Cuántas unidades de cada uno se han vendido ?
-```{r}
-unitarios %>%
-  filter(str_detect(Productos, regex("ATUN CLARO OLIVA", ignore_case = TRUE))) %>%
-  distinct(Productos)
 
+```{r a, warning=FALSE, echo =FALSE, fig.align='center', fig.cap='Productos más vendidos por unidades'}
+library(ggplot2)
 
-top5_unitarios_limpios <- unitarios %>%
-  mutate(
-    # quitamos cualquier palabra final (suelo ser el precio),
-    # es decir, desde el último espacio hasta el final
-    Producto_limpio = str_squish(str_remove(Productos, "\\s+[^\\s]+$"))
-  ) %>%
-  group_by(Producto_limpio) %>%
-  summarise(unidades_vendidas = sum(Cantidad, na.rm = TRUE), .groups = "drop") %>%
-  arrange(desc(unidades_vendidas)) %>%
-  slice_head(n = 5)
+# Calcular la frecuencia de cada producto
+frecuencia_productos <- Productos %>% 
+  count(Producto, sort = TRUE)
 
-top5_unitarios_limpios
+# Definir una paleta de colores personalizada
+colores <- c("#FF6F61", "#6B5B95", "#88B04B","tomato", "#92A8D1")
 
-# Gráfico de barras horizontales ordenado
-ggplot(top5_unitarios_limpios, 
-       aes(x = reorder(Producto_limpio, unidades_vendidas), 
-           y = unidades_vendidas)) +
-  geom_col(fill = "lightgreen") +
-  coord_flip() +
-  labs(
-    title    = "Top 5 productos vendidos por unidades",
-    subtitle = "Unidades vendidas totales",
-    x        = "Producto",
-    y        = "Unidades vendidas"
-  ) +
-  theme_minimal()
+# Crear el gráfico de barras horizontal con el top 5 de productos más vendios/uds.
+ggplot(data = head(frecuencia_productos, 5), aes(x = n, y = Producto)) +
+  geom_bar(stat = "identity", fill = colores) +
+  labs(title = "Top 5 Productos Más Vendidos por unidades",
+       x = "Frecuencia",
+       y = "Producto") +
+  scale_fill_manual(values = colores) +
+  theme_void() +
+  theme(axis.text.y = element_text(face = "bold", hjust = 1),
+        axis.text.x = element_text(face = "bold"))
+
 
 ```
+Como podemos observar en el gráfico, los productos más vendidos por unidad son: Queso de lonchas de cabra, Queso Arzua, filete pechuga, bolsas de plástico y 12 huevos grandes talla L, siendo el más vendido el queso de lonchas de cabra.  
+
+#2 Si consideramos la categoría de FRUTAS Y VERDURAS. Cuáles son los 5 productos más vendidos ? ¿Cuántos kilos se han vendido de cada uno de estos productos ?
+
+
 
 ## Preguntas Propuestas 
 # 1. ¿Cuál es el promedio de productos por ticket?
