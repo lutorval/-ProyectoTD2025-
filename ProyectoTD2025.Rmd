@@ -1,14 +1,11 @@
 ---
-title: "Mini Proyecto 2025. Análisis de tickets de supermercado"
-subtitle: "Tratamiento de Datos. Grado en Ciencia de Datos - UV"
-author: "Grupo G: Lucía Torcal Valdivia, Clara Soriano Solaz, Yelyzaveta Domashova, Sergi Albuixech Sanfélix y Ronal Felipe Garcia Marin"
+title: "ProyectoTD2025"
+author: "Grupo G"
 date: "2025-04-13"
-output:
-  html_document: default
-  pdf_document: default
+output: html_document
 ---
 
-```{r setup, include=TRUE}
+```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
@@ -18,7 +15,27 @@ Relización del proyecto en la asignatura: Tratamiento de los Datos, del grado d
 
 ## Importación
 
-```{r eval = FALSE, include = TRUE}
+```{r setup, cache = F, echo = F, message = F, warning = F, tidy = F}
+# CONFIGURACIÓN GENERAL
+library(knitr)
+options(width = 100)
+# Opciones generales chunks
+opts_chunk$set(echo = T, message = F, error = F, warning = F,
+               comment = NA, fig.align = 'center', dpi = 100, tidy = F,
+               cache.path = '.cache/', fig.path = './figure/')
+# options(xtable.type = 'html')
+knit_hooks$set(inline = function(x) {
+  if(is.numeric(x)) {
+    round(x, getOption('digits'))
+  } else {
+    paste(as.character(x), collapse = ', ')
+  }
+})
+# knit_hooks$set(plot = knitr:::hook_plot_html)
+knitr::opts_chunk$set(fig.width=8, fig.height=4)
+```
+
+```{r eval = FALSE, include = FALSE}
 # Especificamos las librerías necesarias en esta lista
 packages = c("tidyverse", "knitr", "ggplot2", "datasets", "RColorBrewer","nycflights13")
 # use this function to check if each package is on the local machine
@@ -50,7 +67,7 @@ library('modelr') # factor manipulation
 
 Una vez cargadas las librerías necesarias, se procederá a importar los datos. Para ello, se obtiene el listado de todos los tickets ubicados en una carpeta específica.
 
-```{r}
+```{r, echo =FALSE, warning=FALSE, message=FALSE}
 # Guardamos en la variable directorio, la ruta de la carpeta con los ficheros que más tarde utilizaremos
 directorio <- "./data"
 
@@ -65,7 +82,7 @@ A continuación, se analiza la cabecera del recibo, asignando cada línea a una 
 
 Con esta información se crea un primer dataframe. Luego se extraen los productos del ticket para construir un segundo conjunto de datos. Finalmente, se añade el total de la compra, que suele aparecer tras los productos, al dataframe principal por tratarse de un valor único por ticket.
 
-```{r}
+```{r, echo =FALSE, warning=FALSE, message=FALSE}
 
 #Funcion que lee un archivo de ticket y extrae su información principal: cabecera, productos y total de compra, y la devuelve a modo de data frame
 leer_ticket <- function(archivo) {
@@ -123,7 +140,7 @@ leer_ticket <- function(archivo) {
 
 El siguiente paso consiste en generar una lista con todos los tickets disponibles y aplicar sobre cada uno la función definida anteriormente.
 
-```{r}
+```{r, echo =FALSE, warning=FALSE, message=FALSE}
 #Inicializamos una lista vacía
 lista <- list()
 
@@ -136,7 +153,7 @@ for (ticket in tickets) {
 
 Una vez procesados los tickets, se unifican los dataframes y se separan las variables combinadas, como la ubicación o la fecha y hora, en columnas independientes.
 
-```{r}
+```{r, echo =FALSE, warning=FALSE, message=FALSE}
 #Unión de todos los df de la lista
 df <- bind_rows(lista)
 
@@ -149,7 +166,7 @@ df <- separate(df, Fecha, into = c("Fecha", "Hora"), sep = " ")
 
 La importación continúa separando cantidad, producto y precio en un nuevo dataframe, que luego se une con el de cabeceras para relacionar cada producto con su compra correspondiente.
 
-```{r}
+```{r, echo =FALSE, warning=FALSE, message=FALSE}
 
 df <- separate(df, Producto, into = c("Cantidad", "Producto"), 
                sep = "(?<=.)(?=.)", extra = "merge")
@@ -166,7 +183,7 @@ cabecera <- df %>% select(Supermercado, Calle, CP, Ubicacion, Telefono, Fecha, H
 
 A continuación, se analiza la presencia del parking en los tickets, creando una variable que indica si aparece o no, y se incorpora al dataframe principal junto a las cabeceras, productos y tota
 
-```{r}
+```{r, echo =FALSE, warning=FALSE, message=FALSE}
 
 df <- df %>%
   mutate(parking = grepl("PARKING", Producto, ignore.case = TRUE))
@@ -190,64 +207,43 @@ Productos <- Productos %>%
 
 Para finalizar la imputación de datos, se identifican las líneas que contienen pesos de productos y se asocian a su nombre correspondiente, dando lugar a tres dataframes finales: uno con los productos, otro con la información general y un tercero con todos los datos integrados.
 
-```{r}
+```{r, echo =FALSE, warning=FALSE, message=FALSE}
 
-kg <- which(str_detect(Productos$Producto, "kg"))
+library(dplyr)
+library(stringr)
 
-prod_anteriores <- Productos$Producto[kg - 1]
+# 1) Localizamos las filas con "kg"
+indices_kg <- which(str_detect(Productos$Producto, "kg"))
 
-productos_con_peso_precio <- paste(prod_anteriores, Productos$Producto[kg], sep = ", ")
+# 2) Para cada "kg", combinamos con la línea anterior
+prod_anteriores <- Productos$Producto[indices_kg - 1]
+productos_con_peso_precio <- paste(prod_anteriores, Productos$Producto[indices_kg], sep = ", ")
 
-Productos$Producto[kg - 1] <- productos_con_peso_precio
-Productos <- slice(Productos,-kg)
+# 3) Reemplazamos la línea anterior por la combinada
+Productos$Producto[indices_kg - 1] <- productos_con_peso_precio
 
+# 4) Eliminamos las líneas originales que solo tenían la parte "kg"
+Productos <- slice(Productos, -indices_kg)
+
+# 5) Convertimos Cantidad a numérico
 Productos$Cantidad <- as.numeric(Productos$Cantidad)
+
+# 6) Arreglamos el nombre de la columna Telefono en cabecera
 cabecera$Telefono <- gsub("TELÉFONO: ", "", cabecera$Telefono)
 
-```
-
-
-
-# Exploración, análisis y visualización 
-
-¿Cuáles son los 5 productos, de los vendidos por unidades, con más ventas ? ¿Cuántas unidades de cada uno se han vendido ?
-
-
-```{r a, warning=FALSE, echo =FALSE, fig.align='center', fig.cap='Productos más vendidos.'}
-library(ggplot2)
-
-# Ordenar por unidades vendidas y seleccionar los 5 productos más vendidos
-top_productos <- df %>%
-  arrange(desc(Cantidad)) %>%
-  slice_head(n = 5)
-
-# Asegurarse de que la columna Cantidad es numérica
-Productos$Cantidad <- as.numeric(Productos$Cantidad)
-
-# --- CÁLCULO DE LOS 5 PRODUCTOS MÁS VENDIDOS POR UNIDADES ---
-top_productos <- Productos %>%
-  group_by(Producto) %>%
-  summarise(UnidadesVendidas = sum(Cantidad, na.rm = TRUE)) %>%
-  arrange(desc(UnidadesVendidas)) %>%
-  slice_head(n = 5)
-
-# Paleta de colores personalizada
-colores <- c("#FF6F61", "#6B5B95", "#88B04B", "tomato", "#92A8D1")
-
-# --- GRÁFICO DE BARRAS ---
-ggplot(top_productos, aes(x = UnidadesVendidas, y = reorder(Producto, UnidadesVendidas), fill = Producto)) +
-  geom_bar(stat = "identity") +
-  labs(title = "Top 5 Productos Más Vendidos",
-       x = "Unidades Vendidas",
-       y = "Producto") +
-  scale_fill_manual(values = colores) +
-  theme_void() +
-  theme(
-    axis.text.y = element_text(face = "bold", hjust = 1),
-    axis.text.x = element_text(face = "bold")
-  )
 
 ```
+1. ¿Cuáles son los 5 productos, de los vendidos por unidades, con más ventas ? ¿Cuántas unidades de cada uno se han vendido ?
+
+2. Si consideramos la categoría de FRUTAS Y VERDURAS. Cuáles son los 5 productos más vendidos ? ¿Cuántos kilos se han vendido de cada uno de estos productos ?
+
+3. Si consideramos la categoría de PESCADO. Cuáles son los 5 productos más vendidos ? ¿Cuántos kilos se han vendido de cada uno de estos productos ?
+
+4. Muestra mediante un gráfico de líneas como ha variado el precio por kilo de las bananas y los plátanos en los tickets disponibles, a lo largo del tiempo.
+
+5. ¿ Cuál es la procedencia de los tickets ?¿ Qué ciudad/ pueblo tiene un mayor número de tickets ?
+
+6. Muestra mediante un diagrama el número de tickets recogidos cada día de las semana. ¿Si tuvieses que cerrar un día entre semana qué día lo harías ?
 
 Preguntas propuestas:
 
@@ -256,3 +252,82 @@ Preguntas propuestas:
 3. ¿Qué días de la semana concentran más compras?
 4. ¿Cuáles son los 5 productos más baratos comprados por unidad? ¿Con qué frecuencia se compran?
 5. ¿Qué porcentaje del gasto total se ha destinado a productos no alimentarios? ¿Qué tipo de productos destacan en ese grupo?
+## Preguntas Obligatorias
+
+#1. ¿Cuáles son los 5 productos, de los vendidos por unidades, con más ventas ? ¿Cuántas unidades de cada uno se han vendido ?
+```{r}
+unitarios %>%
+  filter(str_detect(Productos, regex("ATUN CLARO OLIVA", ignore_case = TRUE))) %>%
+  distinct(Productos)
+
+
+top5_unitarios_limpios <- unitarios %>%
+  mutate(
+    # quitamos cualquier palabra final (suelo ser el precio),
+    # es decir, desde el último espacio hasta el final
+    Producto_limpio = str_squish(str_remove(Productos, "\\s+[^\\s]+$"))
+  ) %>%
+  group_by(Producto_limpio) %>%
+  summarise(unidades_vendidas = sum(Cantidad, na.rm = TRUE), .groups = "drop") %>%
+  arrange(desc(unidades_vendidas)) %>%
+  slice_head(n = 5)
+
+top5_unitarios_limpios
+
+# Gráfico de barras horizontales ordenado
+ggplot(top5_unitarios_limpios, 
+       aes(x = reorder(Producto_limpio, unidades_vendidas), 
+           y = unidades_vendidas)) +
+  geom_col(fill = "lightgreen") +
+  coord_flip() +
+  labs(
+    title    = "Top 5 productos vendidos por unidades",
+    subtitle = "Unidades vendidas totales",
+    x        = "Producto",
+    y        = "Unidades vendidas"
+  ) +
+  theme_minimal()
+
+```
+
+## Preguntas Propuestas 
+# 1. ¿Cuál es el promedio de productos por ticket?
+```{r}
+
+
+# Suponiendo que 'df' tiene todas las filas de productos con sus columnas de cabecera:
+promedio_por_ticket <- df %>%
+  # Agrupar por un identificador único de ticket; aquí usamos todas las columnas de cabecera
+  group_by(Supermercado, Calle, CP, Ubicacion, Telefono, Fecha, Hora) %>%
+  summarise(n_productos = n(), .groups = "drop") %>%
+  summarise(promedio = mean(n_productos))
+
+promedio_por_ticket
+
+```
+```{r}
+
+
+# 1) Calcular nº de productos por ticket
+tickets_productos <- df %>% 
+  group_by(Supermercado, Calle, CP, Ubicacion, Telefono, Fecha, Hora) %>%
+  summarise(n_productos = n(), .groups = 'drop')
+
+# 2) Calcular la media
+media_prod <- mean(tickets_productos$n_productos)
+
+# 3) Graficar
+ggplot(tickets_productos, aes(x = n_productos)) +
+  geom_histogram(binwidth = 1, fill = "pink", color = "white") +
+  geom_vline(xintercept = media_prod, linetype = "dashed", linewidth = 1) +
+  labs(
+    title    = "Distribución de productos por ticket",
+    subtitle = paste0("Media = ", round(media_prod, 2), " productos"),
+    x        = "Número de productos",
+    y        = "Cantidad de tickets"
+  ) +
+  theme_minimal()
+
+```
+
+
