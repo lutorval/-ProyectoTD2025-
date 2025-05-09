@@ -309,6 +309,8 @@ print(top_frutas_verduras)
 
 ```
 
+#3 Si consideramos la categoría de PESCADO. Cuáles son los 5 productos más vendidos ? ¿Cuántos kilos se han vendido de cada uno de estos productos ?
+
 
 ## Preguntas Propuestas 
 # 1. ¿Cuál es el promedio de productos por ticket?
