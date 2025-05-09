@@ -384,4 +384,48 @@ ggplot(tickets_productos, aes(x = n_productos)) +
 
 ```
 
+#2. ¿Qué categoría representa el mayor porcentaje del gasto total?
+```{r}
+library(dplyr)
+library(stringr)
 
+# Crear categorías basadas en palabras clave (si no existe la columna)
+datos_con_categorias <- datos_integrados %>%
+  mutate(
+    Categoria = case_when(
+      str_detect(tolower(Producto), "leche|yogur|queso|mantequilla") ~ "Lácteos",
+      str_detect(tolower(Producto), "pescado|salmón|atún|bacalao|merluza") ~ "Pescado",
+      str_detect(tolower(Producto), "fruta|plátano|manzana|naranja|pera") ~ "Frutas",
+      str_detect(tolower(Producto), "verdura|lechuga|tomate|cebolla|zanahoria") ~ "Verduras",
+      str_detect(tolower(Producto), "carne|pollo|cerdo|ternera|filete") ~ "Carnes",
+      str_detect(tolower(Producto), "pan|bollería|baguette") ~ "Panadería",
+      str_detect(tolower(Producto), "agua|refresco|zumo|coca cola") ~ "Bebidas",
+      TRUE ~ "Otros"  # Categoría por defecto
+    )
+  )
+
+gasto_por_categoria <- datos_con_categorias %>%
+  group_by(Categoria) %>%
+  summarise(
+    Gasto_Total = sum(precio_prod * Cantidad, na.rm = TRUE)
+  ) %>%
+  mutate(
+    Porcentaje = (Gasto_Total / sum(Gasto_Total)) * 100,
+    Porcentaje = round(Porcentaje, 2)
+  ) %>%
+  arrange(desc(Gasto_Total))
+
+categoria_mayor_gasto <- gasto_por_categoria %>%
+  slice(1)  # Toma la primera fila (la de mayor gasto)
+
+ggplot(gasto_por_categoria, aes(x = reorder(Categoria, -Porcentaje), y = Porcentaje, fill = Categoria)) +
+  geom_col() +
+  geom_text(aes(label = paste0(Porcentaje, "%")), vjust = -0.5, size = 4) +
+  labs(
+    title = "Distribución del Gasto por Categoría",
+    x = "Categoría",
+    y = "Porcentaje del Gasto Total (%)"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
