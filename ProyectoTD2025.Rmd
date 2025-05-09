@@ -16,7 +16,7 @@ Relización del proyecto en la asignatura: Tratamiento de los Datos, del grado d
 
 ## Importación
 
-```{r setup, cache = F, echo = F, message = F, warning = F, tidy = F}
+```{r, cache = F, echo = F, message = F, warning = F, tidy = F}
 # CONFIGURACIÓN GENERAL
 library(knitr)
 options(width = 100)
@@ -289,25 +289,36 @@ Como podemos observar en el gráfico, los productos más vendidos por unidad son
 
 #2 Si consideramos la categoría de FRUTAS Y VERDURAS. Cuáles son los 5 productos más vendidos ? ¿Cuántos kilos se han vendido de cada uno de estos productos ?
 
-```{r}
+```{r top-frutas-verduras-grafico, echo=TRUE, warning=FALSE, message=FALSE}
 library(dplyr)
+library(ggplot2)
+library(stringr)
 
-# 1. Filtramos solo los productos de la categoría FRUTAS Y VERDURAS y sin NA en Cantidad
-frutas_verduras <- datos_integrados %>%
-  filter(Producto == "FRUTAS Y VERDURAS", !is.na(Cantidad))
+# Paso 1: Filtrar solo productos vendidos "a peso" (que tenían 'kg' en la descripción original)
+frutas_verduras_peso <- datos_integrados %>%
+  filter(!is.na(Cantidad)) %>%
+  filter(str_detect(tolower(Producto), "kg"))
 
-# 2. Agrupamos por producto y sumamos los kilos vendidos
-top_frutas_verduras <- frutas_verduras %>%
+# Paso 2: Agrupar por producto y sumar kilos
+top_frutas_verduras <- frutas_verduras_peso %>%
   group_by(Producto) %>%
   summarise(Kilos_vendidos = sum(Cantidad)) %>%
   arrange(desc(Kilos_vendidos)) %>%
   slice_head(n = 5)
 
-# 3. Mostramos el resultado
-print(top_frutas_verduras)
-
+# Paso 3: Gráfico
+ggplot(top_frutas_verduras, aes(x = reorder(Producto, Kilos_vendidos), y = Kilos_vendidos)) +
+  geom_col(fill = "darkgreen") +
+  geom_text(aes(label = round(Kilos_vendidos, 1)), hjust = -0.1) +
+  coord_flip() +
+  labs(title = "Top 5 productos más vendidos (a peso)",
+       subtitle = "Filtrado por presencia de 'kg' en la descripción original",
+       x = "Producto",
+       y = "Kilos vendidos") +
+  theme_minimal()
 
 ```
+
 
 #3 Si consideramos la categoría de PESCADO. Cuáles son los 5 productos más vendidos ? ¿Cuántos kilos se han vendido de cada uno de estos productos ?
 
