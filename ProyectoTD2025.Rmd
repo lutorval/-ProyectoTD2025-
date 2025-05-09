@@ -289,6 +289,25 @@ Como podemos observar en el gráfico, los productos más vendidos por unidad son
 
 #2 Si consideramos la categoría de FRUTAS Y VERDURAS. Cuáles son los 5 productos más vendidos ? ¿Cuántos kilos se han vendido de cada uno de estos productos ?
 
+```{r}
+library(dplyr)
+
+# 1. Filtramos solo los productos de la categoría FRUTAS Y VERDURAS y sin NA en Cantidad
+frutas_verduras <- datos_integrados %>%
+  filter(Producto == "FRUTAS Y VERDURAS", !is.na(Cantidad))
+
+# 2. Agrupamos por producto y sumamos los kilos vendidos
+top_frutas_verduras <- frutas_verduras %>%
+  group_by(Producto) %>%
+  summarise(Kilos_vendidos = sum(Cantidad)) %>%
+  arrange(desc(Kilos_vendidos)) %>%
+  slice_head(n = 5)
+
+# 3. Mostramos el resultado
+print(top_frutas_verduras)
+
+
+```
 
 
 ## Preguntas Propuestas 
